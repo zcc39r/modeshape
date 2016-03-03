@@ -27,6 +27,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.modeshape.jcr.api.observation.Event.ALL_EVENTS;
+
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -82,6 +84,8 @@ public final class JcrObservationManagerTest extends SingleUseAbstractTest {
     // private static final String NT_BASE = "nt:base";
     private static final String REF_MIXIN = "mix:referenceable";
     private static final String UNSTRUCTURED = "nt:unstructured";
+    private static final String FILE = "nt:file";
+    private static final String RESOURCE = "nt:resource";
     private static final String USER_ID = "superuser";
 
     protected static final String WORKSPACE = "ws1";
@@ -2113,7 +2117,7 @@ public final class JcrObservationManagerTest extends SingleUseAbstractTest {
 
         // Create a new session ...
         Session session2 = login(WORKSPACE);
-
+        
         // add node and save
         Node addedNode = session2.getRootNode().addNode("session2Node");
         session2.save();
@@ -2280,6 +2284,40 @@ public final class JcrObservationManagerTest extends SingleUseAbstractTest {
         checkResults(listener);
         assertTrue("Path for removed node is wrong", containsPath(listener, parentPath));
         assertTrue("Path for removed child node is wrong", containsPath(listener, childPath));
+    }
+
+    @Test
+    public void shouldReceivePropertyChangedEventWhenPropertyActuallyChanged() throws Exception {
+        final String FILE_CONTENT = "test";
+        final String MIME_TYPE = "text/plain";
+        final String[] NODE_TYPE_NAME = { RESOURCE };
+
+        // setup
+        Node fileNode = getRoot().addNode("file1", FILE);
+        Node contentNode = fileNode.addNode("jcr:content", RESOURCE);
+        contentNode.setProperty(
+                "jcr:data", session.getValueFactory().createBinary(
+                        new ByteArrayInputStream(FILE_CONTENT.getBytes())));
+        contentNode.setProperty("jcr:mimeType", MIME_TYPE);
+        save();
+
+        // register listener expecting only one PROPERTY_CHANGED event for jcr:lastModified
+        SimpleListener listener = addListener(1, Event.PROPERTY_CHANGED, null, true, null, NODE_TYPE_NAME, false);
+
+        // set properties with unchanged values, i.e. "touch" node, so only jcr:lastModified should be changed
+        contentNode.setProperty(
+                "jcr:data",
+                session.getValueFactory().createBinary(
+                        new ByteArrayInputStream(FILE_CONTENT.getBytes())));
+        contentNode.setProperty("jcr:mimeType", MIME_TYPE);
+        save();
+
+        // event handling
+        listener.waitForEvents();
+        removeListener(listener);
+
+        // tests
+        checkResults(listener);
     }
 
     protected void assertPathsInJournal(EventJournal journal, boolean assertSize, String...expectedPaths) throws RepositoryException {
