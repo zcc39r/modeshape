@@ -33,6 +33,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import javax.jcr.NamespaceRegistry;
 import javax.jcr.Node;
 import javax.jcr.Property;
@@ -111,7 +116,7 @@ public final class JcrObservationManagerTest extends SingleUseAbstractTest {
     public void beforeEach() throws Exception {
         super.beforeEach();
         FileUtil.delete("target/journal");
-        startRepositoryWithConfiguration(resourceStream("config/repo-config-observation.json"));
+        startRepositoryWithConfiguration(resourceStream("config/repo-config-observation-persistent.json"));
         session = login(WORKSPACE);
 
         this.testRootNode = this.session.getRootNode().addNode("testroot", UNSTRUCTURED);
@@ -2290,6 +2295,45 @@ public final class JcrObservationManagerTest extends SingleUseAbstractTest {
         checkResults(listener);
         assertTrue("Path for removed node is wrong", containsPath(listener, parentPath));
         assertTrue("Path for removed child node is wrong", containsPath(listener, childPath));
+    }
+
+    @Test
+    @FixFor( "MODE-2589" )
+    public void shouldGetNodeWhenNodeCreatedInAnotherSession() throws Exception {
+        System.out.println("root has nodes " + getRoot().hasNodes());
+        if (getRoot().hasNode("artifact1")) {
+            System.out.println("remove node artifact1");
+            getRoot().getNode("artifact1").remove();
+            save();
+            System.out.println(getRoot().hasNode("artifact1"));
+        }
+        SimpleListener listener = addListener(1, Event.NODE_ADDED, null, true, null, new String[]{UNSTRUCTURED}, true);
+        String expectedPath = createNodeFromAnotherThread();
+        System.out.println("expectedPath=" + expectedPath);
+        listener.waitForEvents();
+        removeListener(listener);
+        checkResults(listener);
+        assertTrue("Path for node added event is wrong", containsPath(listener, expectedPath));
+        assertTrue("Has no node", getRoot().hasNode("artifact1"));
+        System.out.println("resultPath=" + getRoot().getNode("artifact1").getPath());
+    }
+
+    private String createNodeFromAnotherThread() throws InterruptedException, ExecutionException {
+        final ExecutorService executorService = Executors.newFixedThreadPool(1);
+        final Callable<String> task = new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                Session anotherSession = repository.login(new SimpleCredentials(USER_ID, USER_ID.toCharArray()), WORKSPACE);
+                Node node = anotherSession.getRootNode().addNode("testroot/artifact1", UNSTRUCTURED);
+                anotherSession.save();
+                String res = node.getPath();
+                anotherSession.logout();
+                return res;
+            }
+        };
+        Future<String> future = executorService.submit(task);
+        executorService.shutdown();
+        return future.get();
     }
 
     protected void assertPathsInJournal(EventJournal journal, boolean assertSize, String...expectedPaths) throws RepositoryException {

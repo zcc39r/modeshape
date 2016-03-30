@@ -1,0 +1,28 @@
+{
+    "name": "Observation repository",
+    "workspaces": {
+        "predefined": ["ws1", "ws2"],
+        "default": "default",
+        "allowCreation": true
+    },
+    "storage" : {
+        "cacheName" : "ill",
+        "cacheConfiguration" : "config/infinispan-persistent.xml"
+    },
+    "security": {
+        "anonymous": {
+            "roles": ["readonly"],
+            "useOnFailedLogin": true
+        },
+        "providers": [
+            {
+                "classname": "JAAS",
+                "policyName": "modeshape-jcr"
+            }
+        ]
+    },
+    "journaling": {
+        "location": "target/journal",
+        "asyncWritesEnabled": false
+    }
+}
