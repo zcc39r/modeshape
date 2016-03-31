@@ -2300,22 +2300,19 @@ public final class JcrObservationManagerTest extends SingleUseAbstractTest {
     @Test
     @FixFor( "MODE-2589" )
     public void shouldGetNodeWhenNodeCreatedInAnotherSession() throws Exception {
-        System.out.println("root has nodes " + getRoot().hasNodes());
-        if (getRoot().hasNode("artifact1")) {
-            System.out.println("remove node artifact1");
-            getRoot().getNode("artifact1").remove();
+        if (this.session.getRootNode().hasNode("artifact1")) {
+            this.session.getRootNode().getNode("artifact1").remove();
             save();
-            System.out.println(getRoot().hasNode("artifact1"));
         }
-        SimpleListener listener = addListener(1, Event.NODE_ADDED, null, true, null, new String[]{UNSTRUCTURED}, true);
+        SimpleListener listener = addListener(1, Event.NODE_ADDED, null, true, null, null, true);
         String expectedPath = createNodeFromAnotherThread();
-        System.out.println("expectedPath=" + expectedPath);
+        System.out.println("expectedPath=" + expectedPath + ", thread " + Thread.currentThread().getId());
         listener.waitForEvents();
         removeListener(listener);
         checkResults(listener);
         assertTrue("Path for node added event is wrong", containsPath(listener, expectedPath));
-        assertTrue("Has no node", getRoot().hasNode("artifact1"));
-        System.out.println("resultPath=" + getRoot().getNode("artifact1").getPath());
+        assertTrue("Has no node", this.session.getRootNode().hasNode("artifact1"));
+        System.out.println("resultPath=" + this.session.getRootNode().getNode("artifact1").getPath());
     }
 
     private String createNodeFromAnotherThread() throws InterruptedException, ExecutionException {
@@ -2324,9 +2321,10 @@ public final class JcrObservationManagerTest extends SingleUseAbstractTest {
             @Override
             public String call() throws Exception {
                 Session anotherSession = repository.login(new SimpleCredentials(USER_ID, USER_ID.toCharArray()), WORKSPACE);
-                Node node = anotherSession.getRootNode().addNode("testroot/artifact1", UNSTRUCTURED);
+                Node node = anotherSession.getRootNode().addNode("artifact1", UNSTRUCTURED);
                 anotherSession.save();
                 String res = node.getPath();
+                System.out.println("created node " + res + " from thread " + Thread.currentThread().getId());
                 anotherSession.logout();
                 return res;
             }
