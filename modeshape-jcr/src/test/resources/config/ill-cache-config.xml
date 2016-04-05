@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<infinispan xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="urn:infinispan:config:7.0 http://www.infinispan.org/schemas/infinispan-config-7.0.xsd
+	    urn:infinispan:config:store:jdbc:7.0 http://www.infinispan.org/schemas/infinispan-cachestore-jdbc-config-7.0.xsd"
+	xmlns="urn:infinispan:config:7.0">
+
+	<cache-container default-cache="ill" statistics="false">
+		<jmx duplicate-domains="true" />
+		<local-cache name="ill">
+			<locking isolation="READ_COMMITTED" />
+			<transaction mode="NON_DURABLE_XA" locking="PESSIMISTIC" />
+			<eviction strategy="LIRS" max-entries="8192" />
+			<mixed-keyed-jdbc-store purge="false" dialect="ORACLE"
+				xmlns="urn:infinispan:config:store:jdbc:7.0">
+				<simple-connection
+					connection-url="jdbc:oracle:thin:@testbed.ruslan.ru:1521/MDSP"
+					driver="oracle.jdbc.OracleDriver" username="crmgr" password="universal"/>
+				<string-keyed-table prefix="stringbased">
+					<id-column name="id_column" type="VARCHAR2(255)" />
+					<data-column name="data_column" type="BLOB" />
+					<timestamp-column name="timestamp_column" type="NUMBER(19,0)" />
+				</string-keyed-table>
+				<binary-keyed-table prefix="binarybased">
+					<id-column name="id_column" type="VARCHAR2(255)" />
+					<data-column name="data_column" type="BLOB" />
+					<timestamp-column name="timestamp_column" type="NUMBER(19,0)" />
+				</binary-keyed-table>
+			</mixed-keyed-jdbc-store>
+		</local-cache>
+	</cache-container>
+</infinispan>

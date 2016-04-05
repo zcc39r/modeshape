@@ -7,9 +7,9 @@
         <jmx duplicate-domains="true"/>
         <local-cache name="persistentRepository" statistics="false">
             <transaction
-                    mode="NON_DURABLE_XA"
+                    mode="NON_XA"
                     locking="PESSIMISTIC"/>
-            <locking acquire-timeout="2000" />
+            <locking acquire-timeout="2000" isolation="READ_COMMITTED"/>
             <persistence 
                     passivation="false">
                 <file-store fetch-state="false"
